@@ -30,7 +30,7 @@ Chat Sync is a real-time chat application built using MERN (MongoDB, Express.js,
 >Ensure Node.js is installed before proceeding. You can check by running `node -v` in your terminal.
 1. Clone this repository
    ```bash
-   https://github.com/venkateshraju04/Chat-Sync.git
+   git clone https://github.com/venkateshraju04/Chat-Sync.git
    ```
 2. Configure .env file
    
