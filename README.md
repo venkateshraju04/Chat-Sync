@@ -3,7 +3,7 @@
 ## Overview
 Chat Sync is a real-time chat application built using MERN (MongoDB, Express.js, React and Node.js). It allows a user to chat with other registered users in real-time.
 
-## [Web App Link](https://chat-sync-kipy.onrender.com)
+## [Web App Link](https://www.chat-sync.venkateshraju.me/)
 
 ## YouTube Demo
 [![Watch the video](https://res.cloudinary.com/dy0xvvpe6/image/upload/v1739625616/Screenshot_2025-02-15_153814_cbyucd.png)](https://www.youtube.com/watch?v=v7dVHzjHLUY)
