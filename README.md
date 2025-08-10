@@ -50,8 +50,12 @@ Chat Sync is a real-time chat application built using MERN (MongoDB, Express.js,
    ❗ cd to Chat-Sync (root) directory before building the app.
    ```bash
    npm run build
-   ```
-   ```bash
    npm start
    ```
+   ❗ open a new terminal
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   
    
