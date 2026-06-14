@@ -13,14 +13,19 @@ const ChatContainer = () => {
     getMessages,
     isMessagesLoading,
     selectedUser,
+    selectedGroup,
     markMessagesAsRead,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
   useEffect(() => {
-    getMessages(selectedUser._id);
-  }, [selectedUser._id, getMessages]);
+    if (selectedGroup) {
+      getMessages(selectedGroup._id, true);
+    } else if (selectedUser) {
+      getMessages(selectedUser._id, false);
+    }
+  }, [selectedUser?._id, selectedGroup?._id, getMessages]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -63,6 +68,16 @@ const ChatContainer = () => {
           const showDateDivider = index === 0 || 
             new Date(message.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString();
 
+          const senderObj = typeof message.senderId === "object" ? message.senderId : null;
+          const senderIdStr = senderObj ? senderObj._id : message.senderId;
+          const isMe = senderIdStr === authUser._id;
+
+          const avatarSrc = isMe
+            ? authUser.profilePic || "/avatar.png"
+            : (selectedGroup
+                ? (senderObj?.profilePic || "/avatar.png")
+                : (selectedUser?.profilePic || "/avatar.png"));
+
           return (
             <Fragment key={message._id}>
               {showDateDivider && (
@@ -73,26 +88,28 @@ const ChatContainer = () => {
                 </div>
               )}
               <div
-                className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
+                className={`chat ${isMe ? "chat-end" : "chat-start"}`}
                 ref={messageEndRef}
               >
-                <div className=" chat-image avatar">
-                  <div className="size-10 rounded-full border">
+                <div className="chat-image avatar">
+                  <div className="size-10 rounded-full border overflow-hidden">
                     <img
-                      src={
-                        message.senderId === authUser._id
-                          ? authUser.profilePic || "/avatar.png"
-                          : selectedUser.profilePic || "/avatar.png"
-                      }
+                      src={avatarSrc}
                       alt="profile pic"
+                      className="object-cover size-full"
                     />
                   </div>
                 </div>
-                <div className="chat-header mb-1 flex items-center gap-1">
-                  <time className="text-xs opacity-50 ml-1">
+                <div className="chat-header mb-1 flex items-center gap-1.5">
+                  {!isMe && selectedGroup && (
+                    <span className="font-semibold text-xs text-primary/80 mr-1">
+                      {senderObj?.fullName || "Group Member"}
+                    </span>
+                  )}
+                  <time className="text-[10px] opacity-50">
                     {formatMessageTime(message.createdAt)}
                   </time>
-                  {message.senderId === authUser._id && (
+                  {isMe && !selectedGroup && (
                     <span className="text-xs">
                       {message.isRead ? (
                         <span className="text-sky-400 font-bold ml-1" style={{ letterSpacing: "-0.2em" }}>✓✓</span>
@@ -107,10 +124,10 @@ const ChatContainer = () => {
                     <img
                       src={message.image}
                       alt="Attachment"
-                      className="sm:max-w-[200px] rounded-md mb-2"
+                      className="sm:max-w-[200px] rounded-md mb-2 object-cover"
                     />
                   )}
-                  {message.text && <p>{message.text}</p>}
+                  {message.text && <p className="text-sm">{message.text}</p>}
                 </div>
               </div>
             </Fragment>

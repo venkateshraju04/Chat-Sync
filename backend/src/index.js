@@ -8,6 +8,7 @@ import path from "path";
 
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
+import groupRoutes from "./routes/group.route.js";
 import {app,server} from "./lib/socket.js";
 
 
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/group", groupRoutes);
 
 if(process.env.NODE_ENV === "production"){
     app.use(express.static(path.join(__dirname,"../frontend/dist")));

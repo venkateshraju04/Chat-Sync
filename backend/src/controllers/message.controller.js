@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import cloudinary from "../lib/cloudinary.js";
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js"
@@ -25,13 +26,16 @@ export const getUsersForSidebar=async(req,res)=>{
 
         const unreadMap = {};
         unreadCounts.forEach((item) => {
-            unreadMap[item._id.toString()] = item.count;
+            if (item._id) {
+                unreadMap[item._id.toString()] = item.count;
+            }
         });
 
-        // Aggregate last message timestamps for each conversation partner
+        // Aggregate last message timestamps for each conversation partner (1-to-1 only)
         const lastMessages = await Message.aggregate([
             {
                 $match: {
+                    receiverId: { $exists: true },
                     $or: [
                         { senderId: loggedInUserId },
                         { receiverId: loggedInUserId }
@@ -57,7 +61,9 @@ export const getUsersForSidebar=async(req,res)=>{
 
         const lastMessageMap = {};
         lastMessages.forEach((item) => {
-            lastMessageMap[item._id.toString()] = item.lastMessageAt;
+            if (item._id) {
+                lastMessageMap[item._id.toString()] = item.lastMessageAt;
+            }
         });
 
         const usersWithUnreadAndSort = filteredUsers.map((user) => {
@@ -99,7 +105,8 @@ export const getMessages=async(req,res)=>{
 export const SendMessage=async(req,res)=>{
     try {
         const {text,image}=req.body;
-        const {id: receiverId}=req.params;
+        const {id: targetId}=req.params;
+        const {isGroup}=req.query;
         const senderId=req.user._id;
 
         let imageUrl;
@@ -107,20 +114,48 @@ export const SendMessage=async(req,res)=>{
             const uploadResponse=await cloudinary.uploader.upload(image);
             imageUrl=uploadResponse.secure_url;
         }
-        const newMessage= new Message({
-            senderId,
-            receiverId,
-            text,
-            image: imageUrl,
-        });
+        
+        let newMessage;
+        if (isGroup === "true") {
+            newMessage = new Message({
+                senderId,
+                groupId: targetId,
+                text,
+                image: imageUrl,
+            });
+        } else {
+            newMessage = new Message({
+                senderId,
+                receiverId: targetId,
+                text,
+                image: imageUrl,
+            });
+        }
         await newMessage.save();
 
-        const receiverSocketId=getReceiverSocketId(receiverId);
-        if(receiverSocketId){
-            io.to(receiverSocketId).emit("newMessage",newMessage);
+        const populatedMessage = await Message.findById(newMessage._id).populate("senderId", "fullName profilePic");
+
+        if (isGroup === "true") {
+            const Group = mongoose.model("Group");
+            const group = await Group.findById(targetId);
+            if (group) {
+                group.members.forEach((memberId) => {
+                    if (memberId.toString() !== senderId.toString()) {
+                        const memberSocketId = getReceiverSocketId(memberId);
+                        if (memberSocketId) {
+                            io.to(memberSocketId).emit("newGroupMessage", populatedMessage);
+                        }
+                    }
+                });
+            }
+        } else {
+            const receiverSocketId=getReceiverSocketId(targetId);
+            if(receiverSocketId){
+                io.to(receiverSocketId).emit("newMessage", populatedMessage);
+            }
         }
 
-        res.status(201).json(newMessage);
+        res.status(201).json(populatedMessage);
     } catch (error) {
         console.log("error in sending message",error.message);
         res.status(500).json({error:"Internal server error"})
@@ -146,6 +181,17 @@ export const markMessagesAsRead = async (req, res) => {
         res.status(200).json({ success: true });
     } catch (error) {
         console.log("Error in markMessagesAsRead controller:", error.message);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const getGroupMessages = async (req, res) => {
+    try {
+        const { id: groupId } = req.params;
+        const messages = await Message.find({ groupId }).populate("senderId", "fullName profilePic");
+        res.status(200).json(messages);
+    } catch (error) {
+        console.log("Error in getGroupMessages:", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };

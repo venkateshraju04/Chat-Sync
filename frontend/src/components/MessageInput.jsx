@@ -10,7 +10,7 @@ const MessageInput = () => {
   const [text,setText]=useState('');
   const [imagePreview,setImagePreview]=useState(null);
   const fileInputRef=useRef(null);
-  const {sendMessage, selectedUser}=useChatStore();
+  const {sendMessage, selectedUser, selectedGroup}=useChatStore();
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -18,8 +18,11 @@ const MessageInput = () => {
   const { theme } = useThemeStore();
 
   useEffect(() => {
+    setText('');
+    setImagePreview(null);
     setIsTyping(false);
     setShowEmojiPicker(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
@@ -30,7 +33,7 @@ const MessageInput = () => {
         socket.emit("stopTyping", { receiverId: selectedUser._id });
       }
     };
-  }, [selectedUser]);
+  }, [selectedUser, selectedGroup]);
 
   // Click outside to close emoji picker
   useEffect(() => {

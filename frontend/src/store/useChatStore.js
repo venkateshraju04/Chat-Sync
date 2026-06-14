@@ -10,6 +10,9 @@ export const useChatStore = create((set,get) => ({
     isUsersLoading: false,
     isMessagesLoading: false,
     typingUsers: {},
+    groups: [],
+    selectedGroup: null,
+    isGroupsLoading: false,
 
     getUsers: async () => {
         set({isUsersLoading: true});
@@ -22,12 +25,15 @@ export const useChatStore = create((set,get) => ({
             set({isUsersLoading: false});
         }
     },
-    getMessages: async (userId) => {
+    getMessages: async (id, isGroup = false) => {
         set({isMessagesLoading:true});
         try {
-            const res=await axiosInstance.get(`/message/${userId}`);
+            const url = isGroup ? `/message/group/${id}` : `/message/${id}`;
+            const res=await axiosInstance.get(url);
             set({messages: res.data});
-            get().markMessagesAsRead(userId);
+            if (!isGroup) {
+                get().markMessagesAsRead(id);
+            }
         } catch (error) {
             toast.error(error.response.data.message);
         }finally{
@@ -39,7 +45,8 @@ export const useChatStore = create((set,get) => ({
         try {
             await axiosInstance.put(`/message/read/${userId}`);
             const updatedMessages = get().messages.map((msg) => {
-                if (msg.senderId === userId) {
+                const msgSenderIdStr = typeof msg.senderId === "object" ? msg.senderId._id : msg.senderId;
+                if (msgSenderIdStr === userId) {
                     return { ...msg, isRead: true };
                 }
                 return msg;
@@ -51,11 +58,19 @@ export const useChatStore = create((set,get) => ({
     },
 
     sendMessage: async (messageData)=>{
-        const {selectedUser,messages}=get();
+        const {selectedUser, selectedGroup, messages}=get();
         try {
-            const res=await axiosInstance.post(`/message/send/${selectedUser._id}`,messageData);
+            let res;
+            if (selectedGroup) {
+                res = await axiosInstance.post(`/message/send/${selectedGroup._id}?isGroup=true`, messageData);
+            } else {
+                res = await axiosInstance.post(`/message/send/${selectedUser._id}`, messageData);
+            }
             set({messages: [...messages,res.data]});
-            get().updateUserPosition(selectedUser._id, res.data.createdAt || new Date());
+            
+            if (!selectedGroup) {
+                get().updateUserPosition(selectedUser._id, res.data.createdAt || new Date());
+            }
         } catch (error) {
             toast.error(error.response.data.message);
         }
@@ -67,7 +82,9 @@ export const useChatStore = create((set,get) => ({
 
         socket.on("newMessage",(newMessage)=>{
             const {selectedUser}=get();
-            if(selectedUser && newMessage.senderId===selectedUser._id) {
+            const senderIdStr = typeof newMessage.senderId === "object" ? newMessage.senderId._id : newMessage.senderId;
+
+            if(selectedUser && senderIdStr===selectedUser._id) {
                 set({messages: [...get().messages,newMessage]});
                 
                 if (document.hasFocus() && document.visibilityState === "visible") {
@@ -76,14 +93,14 @@ export const useChatStore = create((set,get) => ({
             } else {
                 // Increment unread count for this sender in the users list
                 const updatedUsers = get().users.map((u) => {
-                    if (u._id === newMessage.senderId) {
+                    if (u._id === senderIdStr) {
                         return { ...u, unreadCount: (u.unreadCount || 0) + 1 };
                     }
                     return u;
                 });
                 set({ users: updatedUsers });
             }
-            get().updateUserPosition(newMessage.senderId, newMessage.createdAt);
+            get().updateUserPosition(senderIdStr, newMessage.createdAt);
         });
 
         socket.on("messagesRead", ({ readerId }) => {
@@ -93,12 +110,20 @@ export const useChatStore = create((set,get) => ({
             if (!authUser) return;
 
             const updatedMessages = get().messages.map((msg) => {
-                if (msg.senderId === authUser._id) {
+                const msgSenderIdStr = typeof msg.senderId === "object" ? msg.senderId._id : msg.senderId;
+                if (msgSenderIdStr === authUser._id) {
                     return { ...msg, isRead: true };
                 }
                 return msg;
             });
             set({ messages: updatedMessages });
+        });
+
+        socket.on("newGroupMessage", (newGroupMessage) => {
+            const { selectedGroup } = get();
+            if (selectedGroup && newGroupMessage.groupId === selectedGroup._id) {
+                set({ messages: [...get().messages, newGroupMessage] });
+            }
         });
 
         socket.on("userTyping", ({ senderId }) => {
@@ -118,6 +143,7 @@ export const useChatStore = create((set,get) => ({
         const socket=useAuthStore.getState().socket;
         if (socket) {
             socket.off("newMessage");
+            socket.off("newGroupMessage");
             socket.off("messagesRead");
             socket.off("userTyping");
             socket.off("userStoppedTyping");
@@ -136,7 +162,7 @@ export const useChatStore = create((set,get) => ({
     },
 
     setSelectedUser: (selectedUser)=> {
-        set({selectedUser});
+        set({selectedUser, selectedGroup: null});
         if (selectedUser) {
             const updatedUsers = get().users.map((u) => {
                 if (u._id === selectedUser._id) {
@@ -146,5 +172,32 @@ export const useChatStore = create((set,get) => ({
             });
             set({ users: updatedUsers });
         }
+    },
+
+    getGroups: async () => {
+        set({ isGroupsLoading: true });
+        try {
+            const res = await axiosInstance.get("/group");
+            set({ groups: res.data });
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to fetch groups");
+        } finally {
+            set({ isGroupsLoading: false });
+        }
+    },
+
+    createGroup: async (groupData) => {
+        try {
+            const res = await axiosInstance.post("/group/create", groupData);
+            set({ groups: [...get().groups, res.data] });
+            toast.success("Group created successfully");
+            return res.data;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to create group");
+        }
+    },
+
+    setSelectedGroup: (selectedGroup) => {
+        set({ selectedGroup, selectedUser: null });
     },
 }));
