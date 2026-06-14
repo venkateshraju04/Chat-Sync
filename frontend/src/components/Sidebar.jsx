@@ -2,20 +2,26 @@ import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
-import { Users } from "lucide-react";
+import { Users, Search, X } from "lucide-react";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } =
     useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setOnlineOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users;
+  const filteredUsers = users.filter((user) => {
+    const matchesOnline = !showOnlineOnly || onlineUsers.includes(user._id);
+    const matchesSearch =
+      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesOnline && matchesSearch;
+  });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
@@ -39,6 +45,25 @@ const Sidebar = () => {
           <span className="text-xs text-zinc-500">
             ({onlineUsers.length - 1} online)
           </span>
+        </div>
+        {/* Search Input */}
+        <div className="mt-4 relative hidden lg:block">
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input input-sm input-bordered w-full pl-9 pr-8 rounded-lg text-sm bg-base-200/50 focus:bg-base-200 transition-all duration-150"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40 pointer-events-none" />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-error transition-colors"
+            >
+              <X className="size-4 text-base-content/40" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -79,6 +104,12 @@ const Sidebar = () => {
             </div>
           </button>
         ))}
+
+        {filteredUsers.length === 0 && (
+          <div className="text-center text-zinc-500 py-8 hidden lg:block">
+            No contacts found
+          </div>
+        )}
       </div>
     </aside>
   );
