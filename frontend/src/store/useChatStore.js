@@ -61,23 +61,32 @@ export const useChatStore = create((set,get) => ({
     },
 
     subscribeToMessages: ()=>{
-        const {selectedUser}=get();
-        if(!selectedUser) return;
-
         const socket=useAuthStore.getState().socket;
         if (!socket) return;
 
         socket.on("newMessage",(newMessage)=>{
-            if(newMessage.senderId!==selectedUser._id) return;
-            set({messages: [...get().messages,newMessage]});
-            
-            if (document.hasFocus() && document.visibilityState === "visible") {
-                get().markMessagesAsRead(selectedUser._id);
+            const {selectedUser}=get();
+            if(selectedUser && newMessage.senderId===selectedUser._id) {
+                set({messages: [...get().messages,newMessage]});
+                
+                if (document.hasFocus() && document.visibilityState === "visible") {
+                    get().markMessagesAsRead(selectedUser._id);
+                }
+            } else {
+                // Increment unread count for this sender in the users list
+                const updatedUsers = get().users.map((u) => {
+                    if (u._id === newMessage.senderId) {
+                        return { ...u, unreadCount: (u.unreadCount || 0) + 1 };
+                    }
+                    return u;
+                });
+                set({ users: updatedUsers });
             }
         });
 
         socket.on("messagesRead", ({ readerId }) => {
-            if (readerId !== selectedUser._id) return;
+            const {selectedUser}=get();
+            if (!selectedUser || readerId !== selectedUser._id) return;
             const authUser = useAuthStore.getState().authUser;
             if (!authUser) return;
 
@@ -113,5 +122,16 @@ export const useChatStore = create((set,get) => ({
         }
     },
 
-    setSelectedUser: (selectedUser)=> set({selectedUser}),
+    setSelectedUser: (selectedUser)=> {
+        set({selectedUser});
+        if (selectedUser) {
+            const updatedUsers = get().users.map((u) => {
+                if (u._id === selectedUser._id) {
+                    return { ...u, unreadCount: 0 };
+                }
+                return u;
+            });
+            set({ users: updatedUsers });
+        }
+    },
 }));

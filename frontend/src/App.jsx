@@ -8,17 +8,29 @@ import ProfilePage from './pages/ProfilePage';
 
 import {Routes,Route, Navigate} from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
+import { useChatStore } from './store/useChatStore';
 import {Loader} from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { useThemeStore } from './store/useThemeStore';
 
 const App=()=>{
-  const {authUser, checkAuth, isCheckingAuth, onlineUsers}=useAuthStore();
+  const {authUser, checkAuth, isCheckingAuth, onlineUsers, socket}=useAuthStore();
   const {theme}=useThemeStore();
+  const {subscribeToMessages, unsubscribeFromMessages}=useChatStore();
   console.log({onlineUsers});
+
   useEffect(()=>{
     checkAuth();
   },[checkAuth]);
+
+  useEffect(() => {
+    if (socket) {
+      subscribeToMessages();
+      return () => {
+        unsubscribeFromMessages();
+      };
+    }
+  }, [socket, subscribeToMessages, unsubscribeFromMessages]);
 
   console.log({authUser});
 

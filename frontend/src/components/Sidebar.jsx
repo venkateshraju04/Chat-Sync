@@ -85,7 +85,7 @@ const Sidebar = () => {
             <div className="relative mx-auto lg:mx-0">
               <img
                 src={user.profilePic || "/avatar.png"}
-                alt={user.name}
+                alt={user.fullName}
                 className="size-12 object-cover rounded-full"
               />
               {onlineUsers.includes(user._id) && (
@@ -94,13 +94,27 @@ const Sidebar = () => {
                   rounded-full ring-2 ring-zinc-900"
                 />
               )}
+              {/* Mobile unread badge */}
+              {user.unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 size-5 bg-primary text-primary-content text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-base-100 lg:hidden">
+                  {user.unreadCount > 4 ? "4+" : user.unreadCount}
+                </span>
+              )}
             </div>
 
-            <div className="hidden lg:block text-left min-w-0">
-              <div className="font-medium truncate">{user.fullName}</div>
-              <div className="text-sm text-zinc-400">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+            {/* Desktop layout */}
+            <div className="hidden lg:flex flex-1 items-center justify-between min-w-0">
+              <div className="text-left min-w-0">
+                <div className="font-medium truncate">{user.fullName}</div>
+                <div className="text-sm text-zinc-400">
+                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                </div>
               </div>
+              {user.unreadCount > 0 && (
+                <span className="bg-primary text-primary-content text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
+                  {user.unreadCount > 4 ? "4+" : user.unreadCount}
+                </span>
+              )}
             </div>
           </button>
         ))}

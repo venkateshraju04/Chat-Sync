@@ -13,8 +13,6 @@ const ChatContainer = () => {
     getMessages,
     isMessagesLoading,
     selectedUser,
-    subscribeToMessages,
-    unsubscribeFromMessages,
     markMessagesAsRead,
   } = useChatStore();
   const { authUser } = useAuthStore();
@@ -22,12 +20,7 @@ const ChatContainer = () => {
 
   useEffect(() => {
     getMessages(selectedUser._id);
-    subscribeToMessages();
-
-    return () => {
-      unsubscribeFromMessages();
-    }
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser._id, getMessages]);
 
   useEffect(() => {
     const handleFocus = () => {

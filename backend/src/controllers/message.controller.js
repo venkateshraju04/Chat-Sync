@@ -6,7 +6,36 @@ export const getUsersForSidebar=async(req,res)=>{
     try {
         const loggedInUserId=req.user._id;
         const filteredUsers=await User.find({_id:{$ne:loggedInUserId}}).select("-password");
-        res.status(200).json(filteredUsers)
+        
+        // Aggregate unread message counts for each sender
+        const unreadCounts = await Message.aggregate([
+            {
+                $match: {
+                    receiverId: loggedInUserId,
+                    isRead: false,
+                }
+            },
+            {
+                $group: {
+                    _id: "$senderId",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const unreadMap = {};
+        unreadCounts.forEach((item) => {
+            unreadMap[item._id.toString()] = item.count;
+        });
+
+        const usersWithUnread = filteredUsers.map((user) => {
+            return {
+                ...user.toObject(),
+                unreadCount: unreadMap[user._id.toString()] || 0,
+            };
+        });
+
+        res.status(200).json(usersWithUnread);
     } catch (error) {
         console.log("Error in getting filtered users", error.message);
         res.status(500).json({error:"Internal server error"});
