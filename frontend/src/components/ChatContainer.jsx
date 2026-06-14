@@ -102,7 +102,7 @@ const ChatContainer = () => {
                   {message.senderId === authUser._id && (
                     <span className="text-xs">
                       {message.isRead ? (
-                        <span className="text-sky-400 font-bold ml-1">✓✓</span>
+                        <span className="text-sky-400 font-bold ml-1" style={{ letterSpacing: "-0.2em" }}>✓✓</span>
                       ) : (
                         <span className="text-zinc-500 ml-1">✓</span>
                       )}
