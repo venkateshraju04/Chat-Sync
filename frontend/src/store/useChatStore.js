@@ -70,7 +70,10 @@ export const useChatStore = create((set,get) => ({
         socket.on("newMessage",(newMessage)=>{
             if(newMessage.senderId!==selectedUser._id) return;
             set({messages: [...get().messages,newMessage]});
-            get().markMessagesAsRead(selectedUser._id);
+            
+            if (document.hasFocus() && document.visibilityState === "visible") {
+                get().markMessagesAsRead(selectedUser._id);
+            }
         });
 
         socket.on("messagesRead", ({ readerId }) => {

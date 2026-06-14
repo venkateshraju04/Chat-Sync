@@ -15,6 +15,7 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    markMessagesAsRead,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -27,6 +28,22 @@ const ChatContainer = () => {
       unsubscribeFromMessages();
     }
   }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (selectedUser && document.hasFocus() && document.visibilityState === "visible") {
+        markMessagesAsRead(selectedUser._id);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [selectedUser, markMessagesAsRead]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
