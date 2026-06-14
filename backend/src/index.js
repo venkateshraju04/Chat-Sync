@@ -1,3 +1,4 @@
+import "./polyfill.js";
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -10,7 +11,7 @@ import messageRoutes from "./routes/message.route.js";
 import {app,server} from "./lib/socket.js";
 
 
-dotenv.config();
+dotenv.config({ path: path.join(import.meta.dirname, "../.env") });
 const PORT= process.env.PORT;
 const __dirname = path.resolve();
 
