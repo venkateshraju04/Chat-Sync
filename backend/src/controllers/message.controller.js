@@ -28,14 +28,50 @@ export const getUsersForSidebar=async(req,res)=>{
             unreadMap[item._id.toString()] = item.count;
         });
 
-        const usersWithUnread = filteredUsers.map((user) => {
+        // Aggregate last message timestamps for each conversation partner
+        const lastMessages = await Message.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { senderId: loggedInUserId },
+                        { receiverId: loggedInUserId }
+                    ]
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ["$senderId", loggedInUserId] },
+                            "$receiverId",
+                            "$senderId"
+                        ]
+                    },
+                    lastMessageAt: { $first: "$createdAt" }
+                }
+            }
+        ]);
+
+        const lastMessageMap = {};
+        lastMessages.forEach((item) => {
+            lastMessageMap[item._id.toString()] = item.lastMessageAt;
+        });
+
+        const usersWithUnreadAndSort = filteredUsers.map((user) => {
             return {
                 ...user.toObject(),
                 unreadCount: unreadMap[user._id.toString()] || 0,
+                lastMessageAt: lastMessageMap[user._id.toString()] || new Date(0),
             };
         });
 
-        res.status(200).json(usersWithUnread);
+        // Sort contacts: newest lastMessageAt first
+        usersWithUnreadAndSort.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+
+        res.status(200).json(usersWithUnreadAndSort);
     } catch (error) {
         console.log("Error in getting filtered users", error.message);
         res.status(500).json({error:"Internal server error"});

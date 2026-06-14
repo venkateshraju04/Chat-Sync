@@ -55,6 +55,7 @@ export const useChatStore = create((set,get) => ({
         try {
             const res=await axiosInstance.post(`/message/send/${selectedUser._id}`,messageData);
             set({messages: [...messages,res.data]});
+            get().updateUserPosition(selectedUser._id, res.data.createdAt || new Date());
         } catch (error) {
             toast.error(error.response.data.message);
         }
@@ -82,6 +83,7 @@ export const useChatStore = create((set,get) => ({
                 });
                 set({ users: updatedUsers });
             }
+            get().updateUserPosition(newMessage.senderId, newMessage.createdAt);
         });
 
         socket.on("messagesRead", ({ readerId }) => {
@@ -120,6 +122,17 @@ export const useChatStore = create((set,get) => ({
             socket.off("userTyping");
             socket.off("userStoppedTyping");
         }
+    },
+
+    updateUserPosition: (userId, timestamp) => {
+        const updatedUsers = get().users.map((u) => {
+            if (u._id === userId) {
+                return { ...u, lastMessageAt: new Date(timestamp) };
+            }
+            return u;
+        });
+        updatedUsers.sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+        set({ users: updatedUsers });
     },
 
     setSelectedUser: (selectedUser)=> {
