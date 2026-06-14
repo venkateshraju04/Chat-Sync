@@ -3,8 +3,10 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
+
+  const isTyping = typingUsers[selectedUser._id];
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -20,8 +22,19 @@ const ChatHeader = () => {
           {/* User info */}
           <div>
             <h3 className="font-medium">{selectedUser.fullName}</h3>
-            <p className="text-sm text-base-content/70">
-              {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+            <p className="text-xs text-base-content/70 flex items-center gap-1 min-h-[16px]">
+              {isTyping ? (
+                <span className="text-emerald-500 font-medium flex items-center gap-1">
+                  typing
+                  <span className="flex gap-1 items-center mt-1">
+                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }}></span>
+                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }}></span>
+                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }}></span>
+                  </span>
+                </span>
+              ) : (
+                onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"
+              )}
             </p>
           </div>
         </div>

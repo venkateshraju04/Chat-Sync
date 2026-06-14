@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useChatStore } from '../store/useChatStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -7,7 +8,23 @@ const MessageInput = () => {
   const [text,setText]=useState('');
   const [imagePreview,setImagePreview]=useState(null);
   const fileInputRef=useRef(null);
-  const {sendMessage}=useChatStore();
+  const {sendMessage, selectedUser}=useChatStore();
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    setIsTyping(false);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    return () => {
+      const socket = useAuthStore.getState().socket;
+      if (socket && selectedUser) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id });
+      }
+    };
+  }, [selectedUser]);
 
   const handleImageChange=(e)=>{
     const file=e.target.files[0];
@@ -27,10 +44,37 @@ const MessageInput = () => {
     if(fileInputRef.current)fileInputRef.current.value="";
   };
 
+  const handleTextChange=(e)=>{
+    const value=e.target.value;
+    setText(value);
+
+    const socket = useAuthStore.getState().socket;
+    if (!socket || !selectedUser) return;
+
+    if (!isTyping) {
+      setIsTyping(true);
+      socket.emit("typing", { receiverId: selectedUser._id });
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stopTyping", { receiverId: selectedUser._id });
+      setIsTyping(false);
+    }, 2000);
+  };
+
   const handleSendMessage=async (e)=>{
     e.preventDefault();
     if(!text.trim() && !imagePreview)return;
     try{
+      const socket = useAuthStore.getState().socket;
+      if (socket && selectedUser && isTyping) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id });
+        setIsTyping(false);
+      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
       await sendMessage({
         text: text.trim(),
         image: imagePreview,
@@ -68,7 +112,7 @@ const MessageInput = () => {
 
       <form onSubmit={handleSendMessage} className='flex items-center gap-2'>
         <div className='flex-1 flex gap-2'>
-          <input type='text' className='w-full input input-bordered rounded-lg input-sm sm:input-md' placeholder='Type a message...' value={text} onChange={(e)=>setText(e.target.value)} />
+          <input type='text' className='w-full input input-bordered rounded-lg input-sm sm:input-md' placeholder='Type a message...' value={text} onChange={handleTextChange} />
 
           <input type='file' accept='image/*' className='hidden' ref={fileInputRef} onChange={handleImageChange} />
 
