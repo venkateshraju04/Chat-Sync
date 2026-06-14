@@ -27,10 +27,26 @@ export const useChatStore = create((set,get) => ({
         try {
             const res=await axiosInstance.get(`/message/${userId}`);
             set({messages: res.data});
+            get().markMessagesAsRead(userId);
         } catch (error) {
             toast.error(error.response.data.message);
         }finally{
             set({isMessagesLoading:false});
+        }
+    },
+
+    markMessagesAsRead: async (userId) => {
+        try {
+            await axiosInstance.put(`/message/read/${userId}`);
+            const updatedMessages = get().messages.map((msg) => {
+                if (msg.senderId === userId) {
+                    return { ...msg, isRead: true };
+                }
+                return msg;
+            });
+            set({ messages: updatedMessages });
+        } catch (error) {
+            console.log("Error in markMessagesAsRead:", error.message);
         }
     },
 
@@ -54,6 +70,21 @@ export const useChatStore = create((set,get) => ({
         socket.on("newMessage",(newMessage)=>{
             if(newMessage.senderId!==selectedUser._id) return;
             set({messages: [...get().messages,newMessage]});
+            get().markMessagesAsRead(selectedUser._id);
+        });
+
+        socket.on("messagesRead", ({ readerId }) => {
+            if (readerId !== selectedUser._id) return;
+            const authUser = useAuthStore.getState().authUser;
+            if (!authUser) return;
+
+            const updatedMessages = get().messages.map((msg) => {
+                if (msg.senderId === authUser._id) {
+                    return { ...msg, isRead: true };
+                }
+                return msg;
+            });
+            set({ messages: updatedMessages });
         });
 
         socket.on("userTyping", ({ senderId }) => {
@@ -73,6 +104,7 @@ export const useChatStore = create((set,get) => ({
         const socket=useAuthStore.getState().socket;
         if (socket) {
             socket.off("newMessage");
+            socket.off("messagesRead");
             socket.off("userTyping");
             socket.off("userStoppedTyping");
         }

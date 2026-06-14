@@ -1,8 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useChatStore } from '../store/useChatStore'
 import { useAuthStore } from '../store/useAuthStore'
-import { Image, Send, X } from "lucide-react";
+import { useThemeStore } from '../store/useThemeStore'
+import { Image, Send, X, Smile } from "lucide-react";
 import toast from "react-hot-toast";
+import EmojiPicker from 'emoji-picker-react';
 
 const MessageInput = () => {
   const [text,setText]=useState('');
@@ -11,9 +13,13 @@ const MessageInput = () => {
   const {sendMessage, selectedUser}=useChatStore();
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
+  const { theme } = useThemeStore();
 
   useEffect(() => {
     setIsTyping(false);
+    setShowEmojiPicker(false);
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
@@ -25,6 +31,23 @@ const MessageInput = () => {
       }
     };
   }, [selectedUser]);
+
+  // Click outside to close emoji picker
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const onEmojiClick = (emojiObject) => {
+    setText((prevText) => prevText + emojiObject.emoji);
+  };
 
   const handleImageChange=(e)=>{
     const file=e.target.files[0];
@@ -74,6 +97,7 @@ const MessageInput = () => {
         setIsTyping(false);
       }
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setShowEmojiPicker(false);
 
       await sendMessage({
         text: text.trim(),
@@ -89,7 +113,17 @@ const MessageInput = () => {
 
   };
   return (
-    <div className="p-4 w-full">
+    <div className="p-4 w-full relative">
+      {/* Emoji Picker Popup */}
+      {showEmojiPicker && (
+        <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
+          <EmojiPicker
+            theme={theme === "dark" || theme === "black" || theme === "luxury" || theme === "dracula" ? "dark" : "light"}
+            onEmojiClick={onEmojiClick}
+          />
+        </div>
+      )}
+
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -116,6 +150,16 @@ const MessageInput = () => {
 
           <input type='file' accept='image/*' className='hidden' ref={fileInputRef} onChange={handleImageChange} />
 
+          {/* Emoji Button */}
+          <button
+            type='button'
+            className={`btn btn-circle ${showEmojiPicker ? "text-emerald-500" : "text-zinc-400"}`}
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
+            <Smile size={20} />
+          </button>
+
+          {/* Image Button */}
           <button
             type='button'
             className={`hidden sm:flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
